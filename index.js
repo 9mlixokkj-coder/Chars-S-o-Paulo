@@ -14,45 +14,63 @@ const {
 const { REST } = require('@discordjs/rest');
 const axios = require('axios');
 
-// CONFIG
+// CLIENT
 
 const client = new Client({
     intents: [GatewayIntentBits.Guilds]
 });
 
-// cooldown
+// COOLDOWN
+
 const cooldown = new Map();
 
-// comando
+// SLASH COMMAND
+
 const commands = [
     new SlashCommandBuilder()
         .setName('avatar')
         .setDescription('Mostra a skin de um usuário do Roblox')
         .addStringOption(option =>
-            option.setName('nome')
-                .setDescription('Nome do usuário do Roblox')
-                .setRequired(true))
+            option
+                .setName('nome')
+                .setDescription('Nome do usuário Roblox')
+                .setRequired(true)
+        )
         .toJSON()
 ];
 
-// registrar comando
+// REGISTRAR COMANDO
+
 const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 
 (async () => {
-    await rest.put(
-        Routes.applicationGuildCommands(
-            process.env.CLIENT_ID,
-            process.env.GUILD_ID
-        ),
-        { body: commands }
-    );
 
-    console.log('Comando registrado!');
+    try {
+
+        await rest.put(
+            Routes.applicationGuildCommands(
+                process.env.CLIENT_ID,
+                process.env.GUILD_ID
+            ),
+            { body: commands }
+        );
+
+        console.log('✅ Comando registrado!');
+
+    } catch (err) {
+
+        console.error(err);
+    }
+
 })();
 
+// READY
+
 client.once('ready', () => {
-    console.log(`Logado como ${client.user.tag}`);
+    console.log(`✅ Logado como ${client.user.tag}`);
 });
+
+// INTERACTIONS
 
 client.on('interactionCreate', async interaction => {
 
@@ -68,16 +86,20 @@ client.on('interactionCreate', async interaction => {
         if (tempo > 0) {
 
             return interaction.reply({
-                content: `Espere ${tempo.toFixed(1)}s.`,
+                content: `⏳ Espere ${tempo.toFixed(1)}s.`,
                 ephemeral: true
             });
         }
     }
 
     cooldown.set(userId, Date.now() + 5000);
-    setTimeout(() => cooldown.delete(userId), 5000);
+
+    setTimeout(() => {
+        cooldown.delete(userId);
+    }, 5000);
 
     // comando avatar
+
     if (interaction.commandName === 'avatar') {
 
         const username = interaction.options.getString('nome');
@@ -86,39 +108,61 @@ client.on('interactionCreate', async interaction => {
 
             await interaction.deferReply();
 
-            // pegar ID Roblox
+            // BUSCAR ID DO ROBLOX
+
             const userRes = await axios.post(
                 'https://users.roblox.com/v1/usernames/users',
                 {
-                    usernames: [username],
-                    excludeBannedUsers: false
+                    usernames: [username.trim()],
+                    excludeBannedUsers: true
                 }
             );
 
-            if (!userRes.data.data.length) {
+            // verificar usuário
+
+            if (
+                !userRes.data ||
+                !userRes.data.data ||
+                userRes.data.data.length === 0
+            ) {
 
                 return interaction.editReply({
-                    content: '❌ Usuário não encontrado.'
+                    content: '❌ Usuário Roblox não encontrado.'
                 });
             }
 
             const userData = userRes.data.data[0];
+
             const userIdRoblox = userData.id;
 
-            // avatar HD
+            // PEGAR AVATAR HD
+
             const avatarRes = await axios.get(
                 `https://thumbnails.roblox.com/v1/users/avatar?userIds=${userIdRoblox}&size=720x720&format=Png&isCircular=false`
             );
 
+            if (
+                !avatarRes.data ||
+                !avatarRes.data.data ||
+                !avatarRes.data.data[0]
+            ) {
+
+                return interaction.editReply({
+                    content: '❌ Não foi possível carregar o avatar.'
+                });
+            }
+
             const avatarUrl = avatarRes.data.data[0].imageUrl;
 
-            // link perfil
+            // LINK PERFIL
+
             const profileUrl =
                 `https://www.roblox.com/users/${userIdRoblox}/profile`;
 
-            // embed
+            // EMBED
+
             const embed = new EmbedBuilder()
-                .setTitle(`Avatar de ${username}`)
+                .setTitle(`Avatar de ${userData.name}`)
                 .setColor(0x2b2d31)
                 .setImage(avatarUrl)
                 .setFooter({
@@ -127,7 +171,8 @@ client.on('interactionCreate', async interaction => {
                 })
                 .setTimestamp();
 
-            // botões
+            // BOTÕES
+
             const row = new ActionRowBuilder().addComponents(
 
                 new ButtonBuilder()
@@ -143,7 +188,8 @@ client.on('interactionCreate', async interaction => {
                     .setURL(profileUrl)
             );
 
-            // enviar
+            // ENVIAR
+
             await interaction.editReply({
                 embeds: [embed],
                 components: [row]
@@ -159,5 +205,7 @@ client.on('interactionCreate', async interaction => {
         }
     }
 });
+
+// LOGIN
 
 client.login(process.env.TOKEN);
