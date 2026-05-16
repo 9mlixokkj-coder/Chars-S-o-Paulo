@@ -29,7 +29,7 @@ const cooldown = new Map();
 const commands = [
     new SlashCommandBuilder()
         .setName('avatar')
-        .setDescription('Mostra a skin de um usuário do Roblox')
+        .setDescription('Mostra a skin/avatar de um usuário do Roblox')
         .addStringOption(option =>
             option
                 .setName('nome')
@@ -55,7 +55,7 @@ const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
             { body: commands }
         );
 
-        console.log('✅ Comando registrado!');
+        console.log('✅ Slash command registrado!');
 
     } catch (err) {
 
@@ -70,13 +70,14 @@ client.once('ready', () => {
     console.log(`✅ Logado como ${client.user.tag}`);
 });
 
-// INTERACTIONS
+// INTERACTION
 
 client.on('interactionCreate', async interaction => {
 
     if (!interaction.isChatInputCommand()) return;
 
     // cooldown
+
     const userId = interaction.user.id;
 
     if (cooldown.has(userId)) {
@@ -98,7 +99,7 @@ client.on('interactionCreate', async interaction => {
         cooldown.delete(userId);
     }, 5000);
 
-    // comando avatar
+    // COMANDO AVATAR
 
     if (interaction.commandName === 'avatar') {
 
@@ -108,17 +109,20 @@ client.on('interactionCreate', async interaction => {
 
             await interaction.deferReply();
 
-            // BUSCAR ID DO ROBLOX
+            // BUSCAR ID ROBLOX
 
             const userRes = await axios.post(
                 'https://users.roblox.com/v1/usernames/users',
                 {
                     usernames: [username.trim()],
-                    excludeBannedUsers: true
+                    excludeBannedUsers: false
+                },
+                {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
                 }
             );
-
-            // verificar usuário
 
             if (
                 !userRes.data ||
@@ -132,10 +136,9 @@ client.on('interactionCreate', async interaction => {
             }
 
             const userData = userRes.data.data[0];
-
             const userIdRoblox = userData.id;
 
-            // PEGAR AVATAR HD
+            // PEGAR AVATAR
 
             const avatarRes = await axios.get(
                 `https://thumbnails.roblox.com/v1/users/avatar?userIds=${userIdRoblox}&size=720x720&format=Png&isCircular=false`
@@ -144,7 +147,7 @@ client.on('interactionCreate', async interaction => {
             if (
                 !avatarRes.data ||
                 !avatarRes.data.data ||
-                !avatarRes.data.data[0]
+                avatarRes.data.data.length === 0
             ) {
 
                 return interaction.editReply({
@@ -197,9 +200,9 @@ client.on('interactionCreate', async interaction => {
 
         } catch (err) {
 
-            console.error(err);
+            console.error('ERRO:', err.response?.data || err.message);
 
-            interaction.editReply({
+            return interaction.editReply({
                 content: '❌ Erro ao buscar a skin.'
             });
         }
