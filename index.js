@@ -35,14 +35,18 @@ const commands = [
         .toJSON()
 ];
 
-// registrar comando (instantâneo no servidor)
+// registrar comando
 const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 
 (async () => {
     await rest.put(
-        Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
+        Routes.applicationGuildCommands(
+            process.env.CLIENT_ID,
+            process.env.GUILD_ID
+        ),
         { body: commands }
     );
+
     console.log('Comando registrado!');
 })();
 
@@ -51,14 +55,18 @@ client.once('ready', () => {
 });
 
 client.on('interactionCreate', async interaction => {
+
     if (!interaction.isChatInputCommand()) return;
 
     // cooldown
     const userId = interaction.user.id;
 
     if (cooldown.has(userId)) {
+
         const tempo = (cooldown.get(userId) - Date.now()) / 1000;
+
         if (tempo > 0) {
+
             return interaction.reply({
                 content: `Espere ${tempo.toFixed(1)}s.`,
                 ephemeral: true
@@ -69,54 +77,85 @@ client.on('interactionCreate', async interaction => {
     cooldown.set(userId, Date.now() + 5000);
     setTimeout(() => cooldown.delete(userId), 5000);
 
+    // comando avatar
     if (interaction.commandName === 'avatar') {
+
         const username = interaction.options.getString('nome');
 
         try {
+
             await interaction.deferReply();
 
-            // pegar ID
-            const userRes = await axios.post('https://users.roblox.com/v1/usernames/users', {
-                usernames: [username],
-                excludeBannedUsers: true
-            });
+            // pegar ID Roblox
+            const userRes = await axios.post(
+                'https://users.roblox.com/v1/usernames/users',
+                {
+                    usernames: [username],
+                    excludeBannedUsers: false
+                }
+            );
 
             if (!userRes.data.data.length) {
-                return interaction.editReply("Usuário não encontrado.");
+
+                return interaction.editReply({
+                    content: '❌ Usuário não encontrado.'
+                });
             }
 
-            const userIdRoblox = userRes.data.data[0].id;
+            const userData = userRes.data.data[0];
+            const userIdRoblox = userData.id;
 
-            // pegar avatar (corpo inteiro)
+            // avatar HD
             const avatarRes = await axios.get(
                 `https://thumbnails.roblox.com/v1/users/avatar?userIds=${userIdRoblox}&size=720x720&format=Png&isCircular=false`
             );
 
             const avatarUrl = avatarRes.data.data[0].imageUrl;
 
-            // embed bonita
+            // link perfil
+            const profileUrl =
+                `https://www.roblox.com/users/${userIdRoblox}/profile`;
+
+            // embed
             const embed = new EmbedBuilder()
                 .setTitle(`Avatar de ${username}`)
                 .setColor(0x2b2d31)
                 .setImage(avatarUrl)
-                .setFooter({ text: `Solicitado por ${interaction.user.username}` });
+                .setFooter({
+                    text: `Solicitado por ${interaction.user.username}`,
+                    iconURL: interaction.user.displayAvatarURL()
+                })
+                .setTimestamp();
 
-            // botão download
+            // botões
             const row = new ActionRowBuilder().addComponents(
+
                 new ButtonBuilder()
                     .setLabel('Baixar Skin')
+                    .setEmoji('📥')
                     .setStyle(ButtonStyle.Link)
-                    .setURL(avatarUrl)
+                    .setURL(avatarUrl),
+
+                new ButtonBuilder()
+                    .setLabel('Ver Perfil no Roblox')
+                    .setEmoji('👤')
+                    .setStyle(ButtonStyle.Link)
+                    .setURL(profileUrl)
             );
 
+            // enviar
             await interaction.editReply({
                 embeds: [embed],
                 components: [row]
             });
 
         } catch (err) {
+
             console.error(err);
-            interaction.editReply("Erro ao buscar a skin.");
+
+            interaction.editReply({
+                content: '❌ Erro ao buscar a skin.'
+            });
         }
     }
 });
