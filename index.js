@@ -29,7 +29,7 @@ const cooldown = new Map();
 const commands = [
     new SlashCommandBuilder()
         .setName('avatar')
-        .setDescription('Mostra a skin/avatar de um usuário do Roblox')
+        .setDescription('Mostra o avatar de um usuário do Roblox')
         .addStringOption(option =>
             option
                 .setName('nome')
@@ -124,6 +124,8 @@ client.on('interactionCreate', async interaction => {
                 }
             );
 
+            // VERIFICAR USUÁRIO
+
             if (
                 !userRes.data ||
                 !userRes.data.data ||
@@ -136,26 +138,13 @@ client.on('interactionCreate', async interaction => {
             }
 
             const userData = userRes.data.data[0];
+
             const userIdRoblox = userData.id;
 
-            // PEGAR AVATAR
+            // AVATAR ESTÁVEL
 
-            const avatarRes = await axios.get(
-                `https://thumbnails.roblox.com/v1/users/avatar?userIds=${userIdRoblox}&size=720x720&format=Png&isCircular=false`
-            );
-
-            if (
-                !avatarRes.data ||
-                !avatarRes.data.data ||
-                avatarRes.data.data.length === 0
-            ) {
-
-                return interaction.editReply({
-                    content: '❌ Não foi possível carregar o avatar.'
-                });
-            }
-
-            const avatarUrl = avatarRes.data.data[0].imageUrl;
+            const avatarUrl =
+                `https://www.roblox.com/headshot-thumbnail/image?userId=${userIdRoblox}&width=720&height=720&format=png`;
 
             // LINK PERFIL
 
@@ -200,7 +189,7 @@ client.on('interactionCreate', async interaction => {
 
         } catch (err) {
 
-            console.error('ERRO:', err.response?.data || err.message);
+            console.error(err);
 
             return interaction.editReply({
                 content: '❌ Erro ao buscar a skin.'
