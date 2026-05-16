@@ -20,7 +20,6 @@ const client = new Client({
 client.once('ready', async () => {
   console.log(`${client.user.tag} online!`);
 
-  // REGISTRAR SLASH COMMAND
   const commands = [
     new SlashCommandBuilder()
       .setName('avatar')
@@ -42,7 +41,7 @@ client.once('ready', async () => {
       { body: commands }
     );
 
-    console.log('Slash commands registrados!');
+    console.log('Slash command /avatar registrado!');
   } catch (err) {
     console.error(err);
   }
@@ -57,7 +56,7 @@ client.on('interactionCreate', async interaction => {
     await interaction.deferReply();
 
     try {
-      // PEGAR USER ID
+      // PEGAR ID DO USUÁRIO ROBLOX
       const userResponse = await axios.post(
         'https://users.roblox.com/v1/usernames/users',
         {
@@ -76,14 +75,14 @@ client.on('interactionCreate', async interaction => {
 
       const userId = userData.id;
 
-      // PEGAR THUMBNAIL DA SKIN
+      // PEGAR IMAGEM DA SKIN
       const avatarResponse = await axios.get(
         `https://thumbnails.roblox.com/v1/users/avatar?userIds=${userId}&size=720x720&format=Png&isCircular=false`
       );
 
       const avatarUrl = avatarResponse.data.data[0].imageUrl;
 
-      // LINK PERFIL
+      // LINK DO PERFIL
       const profileUrl = `https://www.roblox.com/users/${userId}/profile`;
 
       // EMBED
@@ -117,7 +116,7 @@ client.on('interactionCreate', async interaction => {
       console.error(err);
 
       interaction.editReply({
-        content: '❌ Ocorreu um erro ao buscar a skin.'
+        content: '❌ Erro ao buscar avatar.'
       });
     }
   }
